@@ -1,0 +1,40 @@
+name: Sakai Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
+  workflow_dispatch:      # Allows manual trigger
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+
+      - name: Run monitor
+        env:
+          SAKAI_USERNAME: ${{ secrets.SAKAI_USERNAME }}
+          SAKAI_PASSWORD: ${{ secrets.SAKAI_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHECK_INTERVAL_SECONDS: 60  # Only runs once per action trigger
+        run: python monitor_once.py
+
+      - name: Commit and push tracking file
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add seen_notifications.json
+          git commit -m "Update seen notifications [skip ci]" || echo "No changes to commit"
+          git push
